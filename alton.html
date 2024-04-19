@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family and Thrill Rides</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 300px;
+            width: 100%;
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            background-color: #fff;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        li:hover {
+            background-color: #f9f9f9;
+        }
+
+        .wait-time {
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .closed {
+            font-weight: bold;
+            color: red;
+        }
+
+        .green {
+            color: rgb(25, 115, 40);
+        }
+
+        .orange {
+            color: rgb(255, 165, 0);
+        }
+
+        .red {
+            color: red;
+        }
+
+        .bottom-spacer {
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Alton Towers</h1>
+
+        <h2>Thrill Rides</h2>
+        <ul id="thrill-rides"></ul>
+
+        <h2>Family Rides</h2>
+        <ul id="family-rides"></ul>
+
+        <div class="bottom-spacer"></div>
+    </div>
+
+    <script>
+        // Function to create list items for rides
+        function createRideListItem(ride) {
+            if (ride.is_open) {
+                if (ride.wait_time <= 15) {
+                    return `<li>${ride.name} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+                } else if (ride.wait_time <= 30) {
+                    return `<li>${ride.name} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+                } else {
+                    return `<li>${ride.name} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+                }
+            } else {
+                return `<li>${ride.name} <span class="closed">Closed</span></li>`;
+            }
+        }
+
+        // Fetch JSON data from the provided URL
+        fetch('https://corsproxy.io/?https%3A%2F%2Fqueue-times.com/parks/1/queue_times.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const familyRidesList = document.getElementById('family-rides');
+                const thrillRidesList = document.getElementById('thrill-rides');
+
+                // Filter family rides
+                const familyRides = data.lands.find(land => land.name === "Family").rides.filter(ride =>
+                    ["Congo River Rapids", "Hex - The Legend of the Towers", "Monorail - Entrance Plaza",
+                     "Monorail - Hotels & Car Parks", "Runaway Mine Train", "The Blade",
+                     "The Curse at Alton Manor"].includes(ride.name)
+                );
+
+                // Loop through family rides and create list items
+                familyRides.forEach(ride => {
+                    familyRidesList.innerHTML += createRideListItem(ride);
+                });
+
+                // Loop through thrill rides and create list items
+                data.lands.find(land => land.name === "Thrills").rides.forEach(ride => {
+                    thrillRidesList.innerHTML += createRideListItem(ride);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching JSON data:', error);
+            });
+    </script>
+</body>
+</html>
