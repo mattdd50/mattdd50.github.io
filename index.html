@@ -7,49 +7,98 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        h1 {
+        .container {
+            max-width: 300px;
+            width: 100%;
+        }
+
+        h1, h2 {
+            color: #333;
             text-align: center;
-            margin-top: 20px;
-            color: #333;
-        }
-
-        h2 {
-            color: #333;
-            margin-top: 30px;
+            text-decoration: underline;
         }
 
         ul {
-            list-style-type: none;
+            list-style: none;
             padding: 0;
+            margin: 0;
         }
 
         li {
             background-color: #fff;
             padding: 10px;
-            margin-bottom: 10px;
+            margin: 10px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        li:hover {
+            background-color: #f9f9f9;
+        }
+
+        .wait-time {
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .closed {
+            font-weight: bold;
+            color: red;
+        }
+
+        .green {
+            color: rgb(25, 115, 40);
+        }
+
+        .orange {
+            color: rgb(255, 165, 0);
+        }
+
+        .red {
+            color: red;
         }
     </style>
 </head>
 <body>
-    <h1>Coasters and Thrill Rides</h1>
+    <div class="container">
+        <h1>Thorpe Park</h1>
 
-    <h2>Coasters</h2>
-    <ul id="coasters"></ul>
+        <h2>Coasters</h2>
+        <ul id="coasters"></ul>
 
-    <h2>Thrill Rides</h2>
-    <ul id="thrill-rides"></ul>
+        <h2>Thrill Rides</h2>
+        <ul id="thrill-rides"></ul>
+    </div>
 
     <script>
         // Function to create list items for rides
         function createRideListItem(ride) {
-            return `<li>${ride.name} - ${ride.is_open ? 'Open' : 'Closed'} - Wait Time: ${ride.wait_time} minutes</li>`;
+            let rideName = ride.name.replace("The Walking Dead: The Ride", "The Walking Dead");
+            rideName = rideName.replace("SAW - The Ride", "SAW");
+            if (ride.is_open) {
+                if (ride.wait_time <= 15) {
+                    return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+                } else if (ride.wait_time <= 30) {
+                    return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+                } else {
+                    return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+                }
+            } else {
+                return `<li>${rideName} <span class="closed">Closed</span></li>`;
+            }
         }
 
         // Fetch JSON data from the provided URL
