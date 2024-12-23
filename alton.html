@@ -127,8 +127,7 @@
             // Filter and display family rides
             const familyRides = jsonData.lands.find(land => land.name === "Family").rides.filter(ride =>
                 ["Congo River Rapids", "Hex - The Legend of the Towers", "Monorail - Entrance Plaza",
-                 "Monorail - Hotels & Car Parks", "Runaway Mine Train", "The Blade",
-                 "The Curse at Alton Manor"].includes(ride.name)
+                 "Monorail - Hotels & Car Parks", "Runaway Mine Train", "The Curse at Alton Manor"].includes(ride.name)
             );
             familyRides.forEach(ride => {
                 familyRidesList.innerHTML += createRideListItem(ride);
