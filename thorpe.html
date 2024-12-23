@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -77,7 +78,9 @@
         }
     </style>
 </head>
+
 <body>
+
     <div class="container">
         <h1>Thorpe Park</h1>
 
@@ -90,52 +93,56 @@
         <div class="bottom-spacer"></div>
     </div>
 
-    <script>
-        // Function to create list items for rides
-        function createRideListItem(ride) {
-            let rideName = ride.name.replace("The Walking Dead: The Ride", "The Walking Dead");
-            rideName = rideName.replace("SAW - The Ride", "SAW");
-            if (ride.is_open) {
-                if (ride.wait_time <= 15) {
-                    return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
-                } else if (ride.wait_time <= 30) {
-                    return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
-                } else {
-                    return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
-                }
-            } else {
-                return `<li>${rideName} <span class="closed">Closed</span></li>`;
-            }
-        }
-
-        // Fetch JSON data from the provided URL
-        fetch('https://corsproxy.io/?https%3A%2F%2Fqueue-times.com%2Fparks%2F2%2Fqueue_times.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                const coastersList = document.getElementById('coasters');
-                const thrillRidesList = document.getElementById('thrill-rides');
-
-                // Loop through the lands to find coasters and thrill rides
-                data.lands.forEach(land => {
-                    if (land.name === "Coasters") {
-                        land.rides.forEach(ride => {
-                            coastersList.innerHTML += createRideListItem(ride);
-                        });
-                    } else if (land.name === "Thrill rides") {
-                        land.rides.forEach(ride => {
-                            thrillRidesList.innerHTML += createRideListItem(ride);
-                        });
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching JSON data:', error);
-            });
-    </script>
 </body>
+
+<script>
+    // Function to create list items for rides
+    function createRideListItem(ride) {
+        let rideName = ride.name.replace("The Walking Dead: The Ride", "The Walking Dead");
+        rideName = rideName.replace("SAW - The Ride", "SAW");
+        if (ride.is_open) {
+            if (ride.wait_time <= 15) {
+                return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+            } else if (ride.wait_time <= 30) {
+                return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+            } else {
+                return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+            }
+        } else {
+            return `<li>${rideName} <span class="closed">Closed</span></li>`;
+        }
+    }
+
+    // Fetch JSON data using AllOrigins API
+    fetch('https://api.allorigins.win/get?url=https://queue-times.com/parks/2/queue_times.json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json(); // Parse the response as JSON
+        })
+        .then(data => {
+            const jsonData = JSON.parse(data.contents); // Parse the `contents` field as JSON
+
+            const coastersList = document.getElementById('coasters');
+            const thrillRidesList = document.getElementById('thrill-rides');
+
+            // Loop through the lands to find coasters and thrill rides
+            jsonData.lands.forEach(land => {
+                if (land.name === "Coasters") {
+                    land.rides.forEach(ride => {
+                        coastersList.innerHTML += createRideListItem(ride);
+                    });
+                } else if (land.name === "Thrill rides") {
+                    land.rides.forEach(ride => {
+                        thrillRidesList.innerHTML += createRideListItem(ride);
+                    });
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching JSON data:', error);
+        });
+</script>
+
 </html>
