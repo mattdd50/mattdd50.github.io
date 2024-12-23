@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legoland Windsor</title>
+    <link rel="icon" type="image/x-icon" href="icons/favicon-legoland.png">
+    <style>
+      body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      }
+      .container {
+      max-width: 300px;
+      width: 100%;
+      }
+      h1, h2 {
+      color: #333;
+      text-align: center;
+      text-decoration: underline;
+      }
+      ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      }
+      li {
+      background-color: #fff;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      }
+      li:hover {
+      background-color: #f9f9f9;
+      }
+      .wait-time {
+      font-weight: bold;
+      min-width: 60px;
+      text-align: right;
+      }
+      .closed {
+      font-weight: bold;
+      color: red;
+      }
+      .green {
+      color: rgb(25, 115, 40);
+      }
+      .orange {
+      color: rgb(255, 165, 0);
+      }
+      .red {
+      color: red;
+      }
+      .bottom-spacer {
+      height: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Legoland Windsor</h1>
+      <!-- Section for dynamic categories -->
+      <div id="ride-categories"></div>
+      <div class="bottom-spacer"></div>
+    </div>
+    <script>
+      // Function to create list items for rides
+      function createRideListItem(ride) {
+          let rideName = ride.name;
+          if (ride.is_open) {
+              if (ride.wait_time <= 15) {
+                  return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+              } else if (ride.wait_time <= 30) {
+                  return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+              } else {
+                  return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+              }
+          } else {
+              return `<li>${rideName} <span class="closed">Closed</span></li>`;
+          }
+      }
+      
+      // Object to define and populate your custom ride categories (categories should be NamedLikeThis)
+      const customCategories = {
+          Coasters: [
+              "Minifigure Speedway",
+              "Dragon's Apprentice",
+              "The Dragon",
+          ],
+          OtherRides: [
+              "Haunted House Monster Party",
+              "Fairy Tale Brook",
+              "Autumn's Riding Adventure",
+              "LEGOLAND® Express",
+              "Laser Raiders",
+              "Merlin's Challenge",
+              "Fire Academy",
+              "LEGO® City Driving School",
+              "LEGO® City Deep Sea Adventure",
+              "Fire & Ice Freefall",
+              "Flight of the Sky Lion",
+              "Hydra's Challenge",
+              "LEGO® NINJAGO® The Ride",
+              "Jolly Rocker",
+              "Spinning Spider",
+          ],
+      };
+      
+      // Object to define renaming rules (this is where you specify the new names)
+      const renameRules = {
+          "Haunted House Monster Party": "Haunted House",
+          "LEGOLAND® Express": "Legoland Express",
+          "LEGO® City Driving School": "Driving School",
+          "LEGO® City Deep Sea Adventure": "Deep Sea Adventure",
+          "LEGO® NINJAGO® The Ride": "Lego Ninjago The Ride",
+          // Add more renaming rules here
+      };
+      
+      // Function to rename a ride if a rule exists
+      function renameRide(rideName) {
+          return renameRules[rideName] || rideName;
+      }
+      
+      // Fetch JSON data using AllOrigins API
+      fetch('https://api.allorigins.win/get?url=https://queue-times.com/parks/27/queue_times.json')
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error('Network response was not ok');
+              }
+              return response.json(); // Parse the response
+          })
+          .then(data => {
+              // Parse the JSON data from AllOrigins' 'contents' field
+              const jsonData = JSON.parse(data.contents);
+      
+      // Function to capitalize each word in the category name
+      function capitalizeWords(str) {
+      return str
+      .split(/(?=[A-Z])/g)    // Split by capital letters (to handle camelCase if necessary)
+      .join(' ')             // Ensure words are joined by a space
+      .replace(/\b\w/g, char => char.toUpperCase());  // Capitalize the first letter of each word
+      }
+      
+      // Dynamically create HTML containers for each category in the customCategories object
+      const rideCategoriesContainer = document.getElementById('ride-categories');
+      
+      for (const category in customCategories) {
+      const categorySection = document.createElement('div');
+      
+      // Create category title and capitalize each word properly
+      const categoryTitle = document.createElement('h2');
+      categoryTitle.textContent = capitalizeWords(category);
+      
+      categorySection.appendChild(categoryTitle);
+      
+      // Create a <ul> for each category
+      const categoryList = document.createElement('ul');
+      categorySection.appendChild(categoryList);
+      
+      // Generate a valid ID by replacing spaces with hyphens for the HTML element
+      categorySection.id = category.replace(/\s+/g, '-').toLowerCase();  // Convert spaces to hyphens and lowercase the ID
+      
+      // Append the category section to the main container
+      rideCategoriesContainer.appendChild(categorySection);
+      }
+      // Object to store categorized rides dynamically
+      const categorizedRides = {};
+      
+      // Initialize an empty array for each category
+      for (const category in customCategories) {
+      categorizedRides[category] = [];
+      }
+      
+      // Loop through all rides in the JSON data and categorize them
+      jsonData.lands.forEach(land => {
+      land.rides.forEach(ride => {
+          // Check if the ride is part of any of the custom categories (using official names)
+          for (const category in customCategories) {
+              if (customCategories[category].includes(ride.name)) {
+                  categorizedRides[category].push(ride); // Add to the corresponding category
+              }
+          }
+      });
+      });
+      
+      // Sort rides alphabetically within each category and populate the lists
+      for (const category in categorizedRides) {
+      const categoryList = document.getElementById(category.replace(/\s+/g, '-').toLowerCase()).querySelector('ul');
+      const rides = categorizedRides[category];
+      
+      // Sort rides alphabetically by name
+      rides.sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Populate the category list with the rides
+      rides.forEach(ride => {
+          ride.name = renameRide(ride.name); // Rename the ride
+          categoryList.innerHTML += createRideListItem(ride);
+      });
+      }
+      })
+      .catch(error => {
+      console.error('Error fetching JSON data:', error);
+      });
+    </script>
+  </body>
+</html>
