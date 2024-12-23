@@ -90,58 +90,54 @@
         <div class="bottom-spacer"></div>
     </div>
 
-<script>
-    // Function to create list items for rides
-    function createRideListItem(ride) {
-        if (ride.is_open) {
-            if (ride.wait_time <= 15) {
-                return `<li>${ride.name} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
-            } else if (ride.wait_time <= 30) {
-                return `<li>${ride.name} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+    <script>
+        // Function to create list items for rides
+        function createRideListItem(ride) {
+            if (ride.is_open) {
+                if (ride.wait_time <= 15) {
+                    return `<li>${ride.name} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+                } else if (ride.wait_time <= 30) {
+                    return `<li>${ride.name} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+                } else {
+                    return `<li>${ride.name} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+                }
             } else {
-                return `<li>${ride.name} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+                return `<li>${ride.name} <span class="closed">Closed</span></li>`;
             }
-        } else {
-            return `<li>${ride.name} <span class="closed">Closed</span></li>`;
         }
-    }
 
-    // Fetch JSON data using the CORS Anywhere proxy
-    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-    const apiUrl = 'https://queue-times.com/parks/1/queue_times.json';
+        // Fetch JSON data from the provided URL
+        fetch('https://api.allorigins.win/get?url=https://queue-times.com/parks/1/queue_times.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const familyRidesList = document.getElementById('family-rides');
+                const thrillRidesList = document.getElementById('thrill-rides');
 
-    fetch(proxyUrl + apiUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            const familyRidesList = document.getElementById('family-rides');
-            const thrillRidesList = document.getElementById('thrill-rides');
+                // Filter family rides
+                const familyRides = data.lands.find(land => land.name === "Family").rides.filter(ride =>
+                    ["Congo River Rapids", "Hex - The Legend of the Towers", "Monorail - Entrance Plaza",
+                     "Monorail - Hotels & Car Parks", "Runaway Mine Train", "The Blade",
+                     "The Curse at Alton Manor"].includes(ride.name)
+                );
 
-            // Filter family rides
-            const familyRides = data.lands.find(land => land.name === "Family").rides.filter(ride =>
-                ["Congo River Rapids", "Hex - The Legend of the Towers", "Monorail - Entrance Plaza",
-                "Monorail - Hotels & Car Parks", "Runaway Mine Train", "The Blade",
-                "The Curse at Alton Manor"].includes(ride.name)
-            );
+                // Loop through family rides and create list items
+                familyRides.forEach(ride => {
+                    familyRidesList.innerHTML += createRideListItem(ride);
+                });
 
-            // Loop through family rides and create list items
-            familyRides.forEach(ride => {
-                familyRidesList.innerHTML += createRideListItem(ride);
+                // Loop through thrill rides and create list items
+                data.lands.find(land => land.name === "Thrills").rides.forEach(ride => {
+                    thrillRidesList.innerHTML += createRideListItem(ride);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching JSON data:', error);
             });
-
-            // Loop through thrill rides and create list items
-            data.lands.find(land => land.name === "Thrills").rides.forEach(ride => {
-                thrillRidesList.innerHTML += createRideListItem(ride);
-            });
-        })
-        .catch(error => {
-            console.error('Error fetching JSON data:', error);
-        });
-</script>
-
+    </script>
 </body>
 </html>
