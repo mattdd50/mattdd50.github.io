@@ -196,7 +196,7 @@
       const rides = categorizedRides[category];
       
       // Sort rides alphabetically by name
-      rides.sort((a, b) => a.name.localeCompare(b.name));
+      rides.sort((a, b) => renameRide(a.name).localeCompare(renameRide(b.name)));
       
       // Populate the category list with the rides
       rides.forEach(ride => {
