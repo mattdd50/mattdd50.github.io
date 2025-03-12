@@ -97,7 +97,7 @@
   </head>
   <body>
     <div class="container">
-      <h1>Alton Towers&nbsp;</h1>
+      <h1>Alton Towers</h1>
       <div id="status" class="loading">Loading wait times...</div>
       <div id="last-updated" class="last-updated"></div>
       <button id="retry-button" class="retry-button" onclick="fetchWithFallback()">Retry</button>
@@ -353,27 +353,6 @@
       // Auto-refresh the data every 5 minutes (300,000 ms)
       const REFRESH_INTERVAL = 5 * 60 * 1000;
       setInterval(fetchWithFallback, REFRESH_INTERVAL);
-      
-      // Add a manual refresh button
-      document.addEventListener('DOMContentLoaded', function() {
-        const header = document.querySelector('h1');
-        const refreshButton = document.createElement('button');
-        refreshButton.textContent = '↻';
-        refreshButton.style.position = 'absolute';
-        refreshButton.style.right = '20px';
-        refreshButton.style.top = '20px';
-        refreshButton.style.backgroundColor = '#4CAF50';
-        refreshButton.style.color = 'white';
-        refreshButton.style.border = 'none';
-        refreshButton.style.borderRadius = '50%';
-        refreshButton.style.width = '30px';
-        refreshButton.style.height = '30px';
-        refreshButton.style.cursor = 'pointer';
-        refreshButton.style.fontSize = '16px';
-        refreshButton.onclick = fetchWithFallback;
-        document.querySelector('.container').style.position = 'relative';
-        document.querySelector('.container').appendChild(refreshButton);
-      });
       
       // Start the fetch process
       fetchWithFallback();
