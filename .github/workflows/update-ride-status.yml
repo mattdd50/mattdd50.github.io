@@ -1,0 +1,33 @@
+name: Update Ride Status
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  
+  # Allow manual triggers for testing
+  workflow_dispatch:
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install node-fetch@2 firebase-admin
+          
+      - name: Run update script
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+        run: node .github/workflows/update-ride-status.js
