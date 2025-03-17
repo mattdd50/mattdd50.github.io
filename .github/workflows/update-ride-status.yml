@@ -1,9 +1,9 @@
 name: Update Ride Status
 
 on:
-  schedule:
+#  schedule:
     # Run every 5 minutes
-    - cron: '1-59/5 9-20 * * *'
+   # - cron: '1-59/5 9-20 * * *'
   
   # Allow manual triggers for testing
   workflow_dispatch:
