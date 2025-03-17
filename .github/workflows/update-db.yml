@@ -1,0 +1,26 @@
+name: Update Ride Data
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+        
+    - name: Install dependencies
+      run: npm install axios firebase-admin
+      
+    - name: Run update script
+      env:
+        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TEST }}
+      run: |
+        echo "$FIREBASE_CREDENTIALS" > serviceAccountKey.json
+        node update-db.js
