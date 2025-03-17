@@ -52,6 +52,11 @@
       font-weight: bold;
       color: red;
       }
+      .closed-duration {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      }
       .green {
       color: rgb(25, 115, 40);
       }
@@ -94,6 +99,9 @@
         margin-top: 10px;
       }
     </style>
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   </head>
   <body>
     <div class="container">
@@ -106,20 +114,61 @@
       <div class="bottom-spacer"></div>
     </div>
     <script>
+      // Firebase configuration - REPLACE WITH YOUR OWN CONFIG
+      const firebaseConfig = {
+        apiKey: "AIzaSyColT7W4g9qO1gj1T4F4IAk3YcIKc26b8U",
+        authDomain: "legoland-26db2.firebaseapp.com",
+        databaseURL: "https://legoland-26db2-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "legoland-26db2",
+        storageBucket: "legoland-26db2.firebasestorage.app",
+        messagingSenderId: "401569741885",
+        appId: "1:401569741885:web:0daeed43022ffdab7ebe54"
+      };
+      
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+      
+      // Object to store ride status history
+      let rideStatusHistory = {};
+      
       // Function to create list items for rides
       function createRideListItem(ride) {
           let rideName = ride.name;
+          let listItem = document.createElement('li');
+          
+          let nameSpan = document.createElement('span');
+          nameSpan.textContent = rideName;
+          listItem.appendChild(nameSpan);
+          
+          let statusSpan = document.createElement('span');
+          
           if (ride.is_open) {
               if (ride.wait_time <= 15) {
-                  return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+                  statusSpan.className = 'wait-time green';
+                  statusSpan.textContent = `${ride.wait_time} mins`;
               } else if (ride.wait_time <= 30) {
-                  return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+                  statusSpan.className = 'wait-time orange';
+                  statusSpan.textContent = `${ride.wait_time} mins`;
               } else {
-                  return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+                  statusSpan.className = 'wait-time red';
+                  statusSpan.textContent = `${ride.wait_time} mins`;
               }
           } else {
-              return `<li>${rideName} <span class="closed">Closed</span></li>`;
+              statusSpan.className = 'closed';
+              statusSpan.textContent = 'Closed';
+              
+              // Check if we have closure duration info
+              if (ride.closureDuration) {
+                  let durationSpan = document.createElement('span');
+                  durationSpan.className = 'closed-duration';
+                  durationSpan.textContent = ride.closureDuration;
+                  statusSpan.appendChild(durationSpan);
+              }
           }
+          
+          listItem.appendChild(statusSpan);
+          return listItem;
       }
       
       // Object to define and populate your custom ride categories
@@ -230,6 +279,99 @@
         return `${hours}:${minutes}`;
       }
       
+      // Function to format duration for display
+      function formatClosureDuration(startTime) {
+        if (!startTime) return '';
+        
+        const now = new Date().getTime();
+        const closedTime = new Date(startTime).getTime();
+        const diffMs = now - closedTime;
+        
+        // Calculate hours and minutes
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+          return `(${hours}h ${minutes}m)`;
+        } else {
+          return `(${minutes}m)`;
+        }
+      }
+      
+      // Function to update ride status history in Firebase
+      function updateRideStatusHistory(rides) {
+        const now = new Date().getTime();
+        
+        rides.forEach(ride => {
+          const rideKey = ride.name.replace(/[.#$/[\]]/g, '_');
+          const currentStatus = ride.is_open;
+          
+          // Get the ride's status history from Firebase
+          database.ref(`rideStatus/${rideKey}`).once('value')
+            .then((snapshot) => {
+              const rideData = snapshot.val() || {};
+              
+              // If status has changed from open to closed, record the closure time
+              if (!currentStatus && (rideData.lastStatus === undefined || rideData.lastStatus === true)) {
+                console.log(`${ride.name} status changed to closed`);
+                database.ref(`rideStatus/${rideKey}`).update({
+                  lastStatus: currentStatus,
+                  lastStatusChange: now,
+                  name: ride.name
+                });
+              }
+              // If status has changed from closed to open, update the last status
+              else if (currentStatus && rideData.lastStatus === false) {
+                console.log(`${ride.name} status changed to open`);
+                database.ref(`rideStatus/${rideKey}`).update({
+                  lastStatus: currentStatus,
+                  lastStatusChange: null,
+                  name: ride.name
+                });
+              }
+              // If this is the first time we're seeing this ride, just record its status
+              else if (rideData.lastStatus === undefined) {
+                console.log(`First time seeing ${ride.name}, status: ${currentStatus ? 'open' : 'closed'}`);
+                database.ref(`rideStatus/${rideKey}`).set({
+                  lastStatus: currentStatus,
+                  lastStatusChange: !currentStatus ? now : null,
+                  name: ride.name
+                });
+              }
+            })
+            .catch((error) => {
+              console.error(`Error updating ride status for ${ride.name}:`, error);
+            });
+        });
+      }
+      
+      // Function to fetch ride status history from Firebase
+      async function fetchRideStatusHistory() {
+        try {
+          const snapshot = await database.ref('rideStatus').once('value');
+          return snapshot.val() || {};
+        } catch (error) {
+          console.error('Error fetching ride status history:', error);
+          return {};
+        }
+      }
+      
+      // Function to add closure duration to ride data
+      function addClosureDurations(rides, statusHistory) {
+        return rides.map(ride => {
+          const rideKey = ride.name.replace(/[.#$/[\]]/g, '_');
+          const rideStatus = statusHistory[rideKey];
+          
+          if (!ride.is_open && rideStatus && rideStatus.lastStatusChange) {
+            return {
+              ...ride,
+              closureDuration: formatClosureDuration(rideStatus.lastStatusChange)
+            };
+          }
+          return ride;
+        });
+      }
+      
       // Function to fetch data with fallback proxies
       async function fetchWithFallback() {
         statusElement.className = 'loading';
@@ -243,7 +385,7 @@
         
         for (const proxy of corsProxies) {
           try {
-            statusElement.textContent = `Fetching data...`;
+            statusElement.textContent = 'Fetching data...';
             
             const url = proxy.encodeUrl 
               ? `${proxy.url}${encodeURIComponent(targetUrl)}`
@@ -259,8 +401,11 @@
             const data = await response.json();
             const jsonData = proxy.process(data);
             
+            // Get ride status history from Firebase
+            const statusHistory = await fetchRideStatusHistory();
+            
             // Process the data
-            processQueueData(jsonData);
+            processQueueData(jsonData, statusHistory);
             statusElement.style.display = 'none';
             lastUpdatedElement.textContent = `Last updated: ${formatTime()}`;
             return;
@@ -272,13 +417,13 @@
         
         // If we get here, all proxies failed
         statusElement.className = 'error-message';
-        statusElement.textContent = `Failed to load wait times. Please try again later.`;
+        statusElement.textContent = 'Failed to load wait times. Please try again later.';
         retryButton.style.display = 'block';
         console.error('All proxies failed:', lastError);
       }
       
       // Function to process the queue data
-      function processQueueData(jsonData) {
+      function processQueueData(jsonData, statusHistory) {
         // Object to store categorized rides dynamically
         const categorizedRides = {};
         
@@ -303,6 +448,12 @@
         if (jsonData.rides) {
           allRides = allRides.concat(jsonData.rides);
         }
+        
+        // Update ride status history in Firebase
+        updateRideStatusHistory(allRides);
+        
+        // Add closure durations to rides that are closed
+        allRides = addClosureDurations(allRides, statusHistory);
       
         // Loop through the combined rides and categorize them
         allRides.forEach(ride => {
@@ -335,18 +486,32 @@
             // Populate the category list with the rides
             rides.forEach(ride => {
               const renamedRide = {...ride, name: renameRide(ride.name)};
-              categoryList.innerHTML += createRideListItem(renamedRide);
+              const listItem = createRideListItem(renamedRide);
+              categoryList.appendChild(listItem);
             });
           }
         }
       }
       
-      // Auto-refresh the data every 5 minutes (300,000 ms)
-      const REFRESH_INTERVAL = 5 * 60 * 1000;
-      setInterval(fetchWithFallback, REFRESH_INTERVAL);
+      // Set up background sync job to run every minute
+      function setupBackgroundSync() {
+        // First initial fetch
+        fetchWithFallback();
+        
+        // Set interval for regular updates
+        const ONE_MINUTE = 60 * 1000;
+        setInterval(() => {
+          fetchWithFallback();
+        }, ONE_MINUTE);
+        
+        // Keep Firebase connection alive
+        setInterval(() => {
+          database.ref('.info/connected').once('value');
+        }, 5 * 60 * 1000); // Every 5 minutes
+      }
       
-      // Start the fetch process
-      fetchWithFallback();
+      // Initialize everything
+      setupBackgroundSync();
     </script>
   </body>
 </html>
