@@ -102,6 +102,7 @@
     <!-- Add Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
   </head>
   <body>
     <div class="container">
@@ -113,18 +114,7 @@
       <div id="ride-categories"></div>
       <div class="bottom-spacer"></div>
     </div>
-    <script>
-      // Firebase configuration – REPLACE WITH YOUR OWN CONFIG
-      const firebaseConfig = {
-        apiKey: "AIzaSyColT7W4g9qO1gj1T4F4IAk3YcIKc26b8U",
-        authDomain: "legoland-26db2.firebaseapp.com",
-        databaseURL: "https://legoland-26db2-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "legoland-26db2",
-        storageBucket: "legoland-26db2.firebasestorage.app",
-        messagingSenderId: "401569741885",
-        appId: "1:401569741885:web:0daeed43022ffdab7ebe54"
-      };
-      
+    <script>     
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
