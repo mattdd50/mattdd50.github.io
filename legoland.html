@@ -51,11 +51,17 @@
       .closed {
         font-weight: bold;
         color: red;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
       }
       .closed-duration {
         display: block;
         font-size: 11px;
         color: #666;
+        width: 100%;
+        text-align: center;
       }
       .green {
         color: rgb(25, 115, 40);
@@ -102,7 +108,6 @@
     <!-- Add Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="firebase-config.js"></script>
   </head>
   <body>
     <div class="container">
@@ -114,7 +119,18 @@
       <div id="ride-categories"></div>
       <div class="bottom-spacer"></div>
     </div>
-    <script>     
+    <script>
+      // Firebase configuration – REPLACE WITH YOUR OWN CONFIG
+      const firebaseConfig = {
+        apiKey: "AIzaSyColT7W4g9qO1gj1T4F4IAk3YcIKc26b8U",
+        authDomain: "legoland-26db2.firebaseapp.com",
+        databaseURL: "https://legoland-26db2-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "legoland-26db2",
+        storageBucket: "legoland-26db2.firebasestorage.app",
+        messagingSenderId: "401569741885",
+        appId: "1:401569741885:web:0daeed43022ffdab7ebe54"
+      };
+      
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
@@ -193,10 +209,19 @@
               statusSpan.className = 'closed';
               statusSpan.textContent = 'Closed';
               
-              if (ride.closureDuration) {
-                  const durationSpan = document.createElement('span');
-                  durationSpan.className = 'closed-duration';
+              // Create the duration span
+              const durationSpan = document.createElement('span');
+              durationSpan.className = 'closed-duration';
+              
+              // Check if this is an "all day" closure
+              if (ride.closureDuration === "ALL_DAY") {
+                  durationSpan.textContent = 'All Day';
+              } else if (ride.closureDuration) {
                   durationSpan.textContent = ride.closureDuration;
+              }
+              
+              // Only append if there's content
+              if (durationSpan.textContent) {
                   statusSpan.appendChild(durationSpan);
               }
           }
@@ -220,9 +245,9 @@
         const closureTime = new Date(lastStatusChange);
         // Get today's start time (midnight)
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        // If the ride closed before today, return a message.
+        // If the ride closed before today, return a special indicator
         if (lastStatusChange < todayStart) {
-          return "Hasn't opened today";
+          return "ALL_DAY"; // Special marker to be handled in createRideListItem
         }
         const diffMs = now.getTime() - lastStatusChange;
         const hours = Math.floor(diffMs / (1000 * 60 * 60));
