@@ -7,71 +7,82 @@
     <link rel="icon" type="image/x-icon" href="icons/favicon-chessington.png">
     <style>
       body {
-      font-family: Arial, sans-serif;
-      background-color: #f7f7f7;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background-color: #f7f7f7;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
       }
       .container {
-      max-width: 300px;
-      width: 100%;
+        max-width: 300px;
+        width: 100%;
       }
       h1, h2 {
-      color: #333;
-      text-align: center;
-      text-decoration: underline;
+        color: #333;
+        text-align: center;
+        text-decoration: underline;
       }
       ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+        list-style: none;
+        padding: 0;
+        margin: 0;
       }
       li {
-      background-color: #fff;
-      padding: 10px;
-      margin: 10px;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+        background-color: #fff;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
       li:hover {
-      background-color: #f9f9f9;
+        background-color: #f9f9f9;
       }
       .wait-time {
-      font-weight: bold;
-      min-width: 60px;
-      text-align: right;
+        font-weight: bold;
+        min-width: 60px;
+        text-align: right;
       }
       .closed {
-      font-weight: bold;
-      color: red;
+        font-weight: bold;
+        color: red;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .closed-duration {
+        display: block;
+        font-size: 11px;
+        color: #666;
+        width: 100%;
+        text-align: center;
       }
       .green {
-      color: rgb(25, 115, 40);
+        color: rgb(25, 115, 40);
       }
       .orange {
-      color: rgb(255, 165, 0);
+        color: rgb(255, 165, 0);
       }
       .red {
-      color: red;
+        color: red;
       }
       .bottom-spacer {
-      height: 50px;
+        height: 50px;
       }
       .error-message {
-      color: red;
-      text-align: center;
-      padding: 20px;
+        color: red;
+        text-align: center;
+        padding: 20px;
       }
       .loading {
-      text-align: center;
-      padding: 20px;
+        text-align: center;
+        padding: 20px;
       }
       .retry-button {
         display: none;
@@ -94,35 +105,40 @@
         margin-top: 10px;
       }
     </style>
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   </head>
   <body>
     <div class="container">
       <h1>Chessington World of Adventures</h1>
       <div id="status" class="loading">Loading wait times...</div>
       <div id="last-updated" class="last-updated"></div>
-      <button id="retry-button" class="retry-button" onclick="fetchWithFallback()">Retry</button>
-      <!-- Section for dynamic categories -->
+      <button id="retry-button" class="retry-button" onclick="loadRideData()">Retry</button>
+      <!-- Section for dynamic ride categories -->
       <div id="ride-categories"></div>
       <div class="bottom-spacer"></div>
     </div>
     <script>
-      // Function to create list items for rides
-      function createRideListItem(ride) {
-          let rideName = ride.name;
-          if (ride.is_open) {
-              if (ride.wait_time <= 15) {
-                  return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
-              } else if (ride.wait_time <= 30) {
-                  return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
-              } else {
-                  return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
-              }
-          } else {
-              return `<li>${rideName} <span class="closed">Closed</span></li>`;
-          }
-      }
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyCg7Iq1QAlhYpdaMza6mIHc8P5YOiziscA",
+        authDomain: "queuetimes-c0e9f.firebaseapp.com",
+        databaseURL: "https://queuetimes-c0e9f-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "queuetimes-c0e9f",
+        storageBucket: "queuetimes-c0e9f.firebasestorage.app",
+        messagingSenderId: "338197126640",
+        appId: "1:338197126640:web:ab2a258cd0670f7c259135"
+      };
       
-      // Object to define and populate your custom ride categories
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+      
+      // Select which park branch to load. Update this value to display another park's data.
+      const currentPark = "Chessington";
+      
+      // Custom ride categories (adjust as needed for each park)
       const customCategories = {
           Coasters: [
               "Mandrill Mayhem",
@@ -144,17 +160,16 @@
           ],
       };
       
-      // Object to define renaming rules
+      // Rename rules for ride names
       const renameRules = {
           "The Gruffalo River Ride Adventure": "The Gruffalo",
       };
       
-      // Function to rename a ride if a rule exists
       function renameRide(rideName) {
           return renameRules[rideName] || rideName;
       }
       
-      // Function to capitalize each word in the category name
+      // Capitalize category names for display
       function capitalizeWords(str) {
         return str
           .split(/(?=[A-Z])/g)
@@ -162,58 +177,51 @@
           .replace(/\b\w/g, char => char.toUpperCase());
       }
       
-      // Updated list of CORS proxies to try - only using ones that work reliably
-      const corsProxies = [
-        { 
-          url: 'https://chessington.matt-daw2.workers.dev/',
-          process: data => data, // Direct JSON response
-          encodeUrl: false
-        },
-        { 
-          url: 'https://api.allorigins.win/raw?url=',
-          process: data => data, // Direct JSON response
-          encodeUrl: true
-        },
-        {
-          url: 'https://api.allorigins.win/get?url=',
-          process: data => JSON.parse(data.contents), // Need to extract from contents field
-          encodeUrl: true
-        },
-        {
-          url: 'https://api.codetabs.com/v1/proxy?quest=',
-          process: data => data, // Direct JSON response
-          encodeUrl: true
-        },
-      ];
-      
-      const statusElement = document.getElementById('status');
-      const retryButton = document.getElementById('retry-button');
-      const lastUpdatedElement = document.getElementById('last-updated');
-      
-      // Create ride category elements
-      const rideCategoriesContainer = document.getElementById('ride-categories');
-      
-      for (const category in customCategories) {
-        const categorySection = document.createElement('div');
-        
-        // Create category title and capitalize each word properly
-        const categoryTitle = document.createElement('h2');
-        categoryTitle.textContent = capitalizeWords(category);
-        
-        categorySection.appendChild(categoryTitle);
-        
-        // Create a <ul> for each category
-        const categoryList = document.createElement('ul');
-        categorySection.appendChild(categoryList);
-        
-        // Generate a valid ID by replacing spaces with hyphens
-        categorySection.id = category.replace(/\s+/g, '-').toLowerCase();
-        
-        // Append the category section to the main container
-        rideCategoriesContainer.appendChild(categorySection);
+      // Create list item for each ride
+      function createRideListItem(ride) {
+          const listItem = document.createElement('li');
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = ride.name;
+          listItem.appendChild(nameSpan);
+          
+          const statusSpan = document.createElement('span');
+          
+          if (ride.is_open) {
+              if (ride.wait_time <= 15) {
+                  statusSpan.className = 'wait-time green';
+              } else if (ride.wait_time <= 30) {
+                  statusSpan.className = 'wait-time orange';
+              } else {
+                  statusSpan.className = 'wait-time red';
+              }
+              statusSpan.textContent = `${ride.wait_time} mins`;
+          } else {
+              statusSpan.className = 'closed';
+              statusSpan.textContent = 'Closed';
+              
+              // Create the duration span
+              const durationSpan = document.createElement('span');
+              durationSpan.className = 'closed-duration';
+              
+              // Check if this is an "all day" closure
+              if (ride.closureDuration === "ALL_DAY") {
+                  durationSpan.textContent = 'All Day';
+              } else if (ride.closureDuration) {
+                  durationSpan.textContent = ride.closureDuration;
+              }
+              
+              // Only append if there's content
+              if (durationSpan.textContent) {
+                  statusSpan.appendChild(durationSpan);
+              }
+          }
+          
+          listItem.appendChild(statusSpan);
+          return listItem;
       }
       
-      // Function to format current time
+      // Format the current time for display
       function formatTime() {
         const now = new Date();
         const hours = now.getHours().toString().padStart(2, '0');
@@ -221,82 +229,39 @@
         return `${hours}:${minutes}`;
       }
       
-      // Function to fetch data with fallback proxies
-      async function fetchWithFallback() {
-        statusElement.className = 'loading';
-        statusElement.textContent = 'Loading wait times...';
-        statusElement.style.display = 'block';
-        retryButton.style.display = 'none';
-        lastUpdatedElement.textContent = '';
-        
-        let lastError;
-        const targetUrl = 'https://queue-times.com/parks/3/queue_times.json';
-        
-        for (const proxy of corsProxies) {
-          try {
-            statusElement.textContent = `Fetching data...`;
-            
-            const url = proxy.encodeUrl 
-              ? `${proxy.url}${encodeURIComponent(targetUrl)}`
-              : `${proxy.url}${targetUrl}`;
-            
-            // console.log(`Trying: ${url}`);
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            const jsonData = proxy.process(data);
-            
-            // Process the data
-            processQueueData(jsonData);
-            statusElement.style.display = 'none';
-            lastUpdatedElement.textContent = `Last updated: ${formatTime()}`;
-            return;
-          } catch (error) {
-            lastError = error;
-            console.error(`Error with proxy ${proxy.url}:`, error);
-          }
+      // Compute how long a ride has been closed
+      function formatClosureDuration(lastStatusChange) {
+        if (!lastStatusChange) return '';
+        const now = new Date();
+        const closureTime = new Date(lastStatusChange);
+        // Get today's start time (midnight)
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        // If the ride closed before today, return a special indicator
+        if (lastStatusChange < todayStart) {
+          return "ALL_DAY"; // Special marker to be handled in createRideListItem
         }
-        
-        // If we get here, all proxies failed
-        statusElement.className = 'error-message';
-        statusElement.textContent = `Failed to load wait times. Please try again later.`;
-        retryButton.style.display = 'block';
-        console.error('All proxies failed:', lastError);
+        const diffMs = now.getTime() - lastStatusChange;
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return hours > 0 ? `(${hours}h ${minutes}m)` : `(${minutes}m)`;
       }
       
-      // Function to process the queue data
-      function processQueueData(jsonData) {
-        // Object to store categorized rides dynamically
+      // Process ride data from Firebase and update the display
+      function processRideData(rides) {
+        // Categorize rides according to customCategories.
         const categorizedRides = {};
-        
-        // Initialize an empty array for each category
         for (const category in customCategories) {
           categorizedRides[category] = [];
         }
         
-        // Combine rides from both 'lands' and top-level 'rides'
-        let allRides = [];
-      
-        // If rides are nested under lands, add them to the array
-        if (jsonData.lands) {
-          jsonData.lands.forEach(land => {
-            if (land.rides) {
-              allRides = allRides.concat(land.rides);
-            }
-          });
-        }
-      
-        // Also, add rides that are directly on the top-level
-        if (jsonData.rides) {
-          allRides = allRides.concat(jsonData.rides);
-        }
-      
-        // Loop through the combined rides and categorize them
-        allRides.forEach(ride => {
+        rides.forEach(ride => {
+          // Map stored Firebase fields to those used by the display logic.
+          ride.is_open = ride.lastStatus;
+          ride.wait_time = ride.waitTime;
+          if (!ride.is_open && ride.lastStatusChange) {
+            ride.closureDuration = formatClosureDuration(ride.lastStatusChange);
+          }
+          
           for (const category in customCategories) {
             if (customCategories[category].includes(ride.name)) {
               categorizedRides[category].push(ride);
@@ -304,40 +269,81 @@
           }
         });
         
-        // Clear existing lists
+        // Clear and re-populate each category section.
         for (const category in categorizedRides) {
           const categoryElement = document.getElementById(category.replace(/\s+/g, '-').toLowerCase());
           if (categoryElement) {
             const categoryList = categoryElement.querySelector('ul');
             categoryList.innerHTML = '';
-          }
-        }
-        
-        // Sort rides alphabetically within each category and populate the lists
-        for (const category in categorizedRides) {
-          const categoryElement = document.getElementById(category.replace(/\s+/g, '-').toLowerCase());
-          if (categoryElement) {
-            const categoryList = categoryElement.querySelector('ul');
-            const rides = categorizedRides[category];
-            
-            // Sort rides alphabetically by name
-            rides.sort((a, b) => renameRide(a.name).localeCompare(renameRide(b.name)));
-            
-            // Populate the category list with the rides
-            rides.forEach(ride => {
-              const renamedRide = {...ride, name: renameRide(ride.name)};
-              categoryList.innerHTML += createRideListItem(renamedRide);
+            categorizedRides[category].sort((a, b) => renameRide(a.name).localeCompare(renameRide(b.name)));
+            categorizedRides[category].forEach(ride => {
+              const renamedRide = { ...ride, name: renameRide(ride.name) };
+              const listItem = createRideListItem(renamedRide);
+              categoryList.appendChild(listItem);
             });
           }
         }
+        
+        document.getElementById('status').style.display = 'none';
       }
       
-      // Auto-refresh the data every 5 minutes (300,000 ms)
-      const REFRESH_INTERVAL = 5 * 60 * 1000;
-      setInterval(fetchWithFallback, REFRESH_INTERVAL);
+      // Load ride data from Firebase for the current park
+      async function loadRideData() {
+        const statusElement = document.getElementById('status');
+        statusElement.className = 'loading';
+        statusElement.textContent = 'Loading wait times...';
+        document.getElementById('retry-button').style.display = 'none';
+        
+        try {
+          const snapshot = await database.ref(`rideStatus/${currentPark}`).once('value');
+          const ridesData = snapshot.val() || {};
+          // Convert the returned object into an array.
+          const ridesArray = Object.keys(ridesData).map(key => ridesData[key]);
+          processRideData(ridesArray);
+          document.getElementById('last-updated').textContent = `Last updated: ${formatTime()}`;
+        } catch (error) {
+          console.error('Error loading ride data from Firebase:', error);
+          statusElement.className = 'error-message';
+          statusElement.textContent = 'Failed to load wait times. Please try again later.';
+          document.getElementById('retry-button').style.display = 'block';
+        }
+      }
       
-      // Start the fetch process
-      fetchWithFallback();
+      // Create DOM sections for each ride category.
+      function createCategorySections() {
+        const rideCategoriesContainer = document.getElementById('ride-categories');
+        for (const category in customCategories) {
+          const categorySection = document.createElement('div');
+          const categoryTitle = document.createElement('h2');
+          categoryTitle.textContent = capitalizeWords(category);
+          categorySection.appendChild(categoryTitle);
+          
+          const categoryList = document.createElement('ul');
+          categorySection.appendChild(categoryList);
+          
+          categorySection.id = category.replace(/\s+/g, '-').toLowerCase();
+          rideCategoriesContainer.appendChild(categorySection);
+        }
+      }
+      
+      // Set up a background sync that refreshes the ride data every minute
+      function setupBackgroundSync() {
+        createCategorySections();
+        loadRideData();
+        
+        const ONE_MINUTE = 60 * 1000;
+        setInterval(() => {
+          loadRideData();
+        }, ONE_MINUTE);
+        
+        // Keep the Firebase connection alive
+        setInterval(() => {
+          database.ref('.info/connected').once('value');
+        }, 5 * 60 * 1000);
+      }
+      
+      // Initialize the app
+      setupBackgroundSync();
     </script>
   </body>
 </html>
