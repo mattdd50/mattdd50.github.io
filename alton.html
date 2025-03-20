@@ -238,11 +238,12 @@
           return listItem;
       }
       
-      // Format the current time for display
-      function formatTime() {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
+      // Format last updated time
+      function formatFirebaseLastUpdated(lastUpdatedStr) {
+        const date = new Date(lastUpdatedStr);
+        // Use getUTCHours and getUTCMinutes if you want to display UTC time
+        const hours = date.getUTCHours().toString().padStart(2, '0');
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
         return `${hours}:${minutes}`;
       }
       
@@ -317,7 +318,12 @@
           // Convert the returned object into an array.
           const ridesArray = Object.keys(ridesData).map(key => ridesData[key]);
           processRideData(ridesArray);
-          document.getElementById('last-updated').textContent = `Last updated: ${formatTime()}`;
+          
+          if (ridesArray.length > 0 && ridesArray[0].lastUpdated) {
+            document.getElementById('last-updated').textContent = `Last updated: ${formatFirebaseLastUpdated(ridesArray[0].lastUpdated)}`;
+          } else {
+            document.getElementById('last-updated').textContent = 'Last updated: N/A';
+          }
         } catch (error) {
           console.error('Error loading ride data from Firebase:', error);
           statusElement.className = 'error-message';
