@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legoland Windsor</title>
+    <link rel="icon" type="image/x-icon" href="icons/favicon-legoland.png">
+    <style>
+      body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      }
+      .container {
+      max-width: 300px;
+      width: 100%;
+      }
+      h1, h2 {
+      color: #333;
+      text-align: center;
+      text-decoration: underline;
+      }
+      ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      }
+      li {
+      background-color: #fff;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      }
+      li:hover {
+      background-color: #f9f9f9;
+      }
+      .wait-time {
+      font-weight: bold;
+      min-width: 60px;
+      text-align: right;
+      }
+      .closed {
+      font-weight: bold;
+      color: red;
+      }
+      .green {
+      color: rgb(25, 115, 40);
+      }
+      .orange {
+      color: rgb(255, 165, 0);
+      }
+      .red {
+      color: red;
+      }
+      .bottom-spacer {
+      height: 50px;
+      }
+      .error-message {
+      color: red;
+      text-align: center;
+      padding: 20px;
+      }
+      .loading {
+      text-align: center;
+      padding: 20px;
+      }
+      .retry-button {
+        display: none;
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 10px auto;
+      }
+      .retry-button:hover {
+        background-color: #45a049;
+      }
+      .last-updated {
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Legoland Windsor</h1>
+      <div id="status" class="loading">Loading wait times...</div>
+      <div id="last-updated" class="last-updated"></div>
+      <button id="retry-button" class="retry-button" onclick="fetchWithFallback()">Retry</button>
+      <!-- Section for dynamic categories -->
+      <div id="ride-categories"></div>
+      <div class="bottom-spacer"></div>
+    </div>
+    <script>
+      // Function to create list items for rides
+      function createRideListItem(ride) {
+          let rideName = ride.name;
+          if (ride.is_open) {
+              if (ride.wait_time <= 15) {
+                  return `<li>${rideName} <span class="wait-time green">${ride.wait_time} mins</span></li>`;
+              } else if (ride.wait_time <= 30) {
+                  return `<li>${rideName} <span class="wait-time orange">${ride.wait_time} mins</span></li>`;
+              } else {
+                  return `<li>${rideName} <span class="wait-time red">${ride.wait_time} mins</span></li>`;
+              }
+          } else {
+              return `<li>${rideName} <span class="closed">Closed</span></li>`;
+          }
+      }
+      
+      // Object to define and populate your custom ride categories
+      const customCategories = {
+          Coasters: [
+              "Minifigure Speedway",
+              "Dragon's Apprentice",
+              "The Dragon",
+          ],
+          OtherRides: [
+              "Haunted House Monster Party",
+              "Fairy Tale Brook",
+              "Autumn's Riding Adventure",
+              "LEGOLAND® Express",
+              "Laser Raiders",
+              "Merlin's Challenge",
+              "Fire Academy",
+              "LEGO® City Driving School",
+              "LEGO® City Deep Sea Adventure",
+              "Fire & Ice Freefall",
+              "Flight of the Sky Lion",
+              "Hydra's Challenge",
+              "LEGO® NINJAGO® The Ride",
+              "Jolly Rocker",
+              "Spinning Spider",
+          ],
+      };
+      
+      // Object to define renaming rules
+      const renameRules = {
+          "Dragon's Apprentice": "The Dragon's Apprentice",
+          "Haunted House Monster Party": "Haunted House",
+          "LEGOLAND® Express": "Legoland Express",
+          "LEGO® City Driving School": "Driving School",
+          "LEGO® City Deep Sea Adventure": "Deep Sea Adventure",
+          "LEGO® NINJAGO® The Ride": "Lego Ninjago The Ride",
+      };
+      
+      // Function to rename a ride if a rule exists
+      function renameRide(rideName) {
+          return renameRules[rideName] || rideName;
+      }
+      
+      // Function to capitalize each word in the category name
+      function capitalizeWords(str) {
+        return str
+          .split(/(?=[A-Z])/g)
+          .join(' ')
+          .replace(/\b\w/g, char => char.toUpperCase());
+      }
+      
+      // Updated list of CORS proxies to try - only using ones that work reliably
+      const corsProxies = [
+        { 
+          url: 'https://legolandwindsor.matt-daw2.workers.dev/',
+          process: data => data, // Direct JSON response
+          encodeUrl: false
+        },
+        { 
+          url: 'https://api.allorigins.win/raw?url=',
+          process: data => data, // Direct JSON response
+          encodeUrl: true
+        },
+        {
+          url: 'https://api.allorigins.win/get?url=',
+          process: data => JSON.parse(data.contents), // Need to extract from contents field
+          encodeUrl: true
+        },
+        {
+          url: 'https://api.codetabs.com/v1/proxy?quest=',
+          process: data => data, // Direct JSON response
+          encodeUrl: true
+        },
+      ];
+      
+      const statusElement = document.getElementById('status');
+      const retryButton = document.getElementById('retry-button');
+      const lastUpdatedElement = document.getElementById('last-updated');
+      
+      // Create ride category elements
+      const rideCategoriesContainer = document.getElementById('ride-categories');
+      
+      for (const category in customCategories) {
+        const categorySection = document.createElement('div');
+        
+        // Create category title and capitalize each word properly
+        const categoryTitle = document.createElement('h2');
+        categoryTitle.textContent = capitalizeWords(category);
+        
+        categorySection.appendChild(categoryTitle);
+        
+        // Create a <ul> for each category
+        const categoryList = document.createElement('ul');
+        categorySection.appendChild(categoryList);
+        
+        // Generate a valid ID by replacing spaces with hyphens
+        categorySection.id = category.replace(/\s+/g, '-').toLowerCase();
+        
+        // Append the category section to the main container
+        rideCategoriesContainer.appendChild(categorySection);
+      }
+      
+      // Function to format current time
+      function formatTime() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+      }
+      
+      // Function to fetch data with fallback proxies
+      async function fetchWithFallback() {
+        statusElement.className = 'loading';
+        statusElement.textContent = 'Loading wait times...';
+        statusElement.style.display = 'block';
+        retryButton.style.display = 'none';
+        lastUpdatedElement.textContent = '';
+        
+        let lastError;
+        const targetUrl = 'https://queue-times.com/parks/27/queue_times.json';
+        
+        for (const proxy of corsProxies) {
+          try {
+            statusElement.textContent = `Fetching data...`;
+            
+            const url = proxy.encodeUrl 
+              ? `${proxy.url}${encodeURIComponent(targetUrl)}`
+              : `${proxy.url}${targetUrl}`;
+            
+            // console.log(`Trying: ${url}`);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const jsonData = proxy.process(data);
+            
+            // Process the data
+            processQueueData(jsonData);
+            statusElement.style.display = 'none';
+            lastUpdatedElement.textContent = `Last updated: ${formatTime()}`;
+            return;
+          } catch (error) {
+            lastError = error;
+            console.error(`Error with proxy ${proxy.url}:`, error);
+          }
+        }
+        
+        // If we get here, all proxies failed
+        statusElement.className = 'error-message';
+        statusElement.textContent = `Failed to load wait times. Please try again later.`;
+        retryButton.style.display = 'block';
+        console.error('All proxies failed:', lastError);
+      }
+      
+      // Function to process the queue data
+      function processQueueData(jsonData) {
+        // Object to store categorized rides dynamically
+        const categorizedRides = {};
+        
+        // Initialize an empty array for each category
+        for (const category in customCategories) {
+          categorizedRides[category] = [];
+        }
+        
+        // Combine rides from both 'lands' and top-level 'rides'
+        let allRides = [];
+      
+        // If rides are nested under lands, add them to the array
+        if (jsonData.lands) {
+          jsonData.lands.forEach(land => {
+            if (land.rides) {
+              allRides = allRides.concat(land.rides);
+            }
+          });
+        }
+      
+        // Also, add rides that are directly on the top-level
+        if (jsonData.rides) {
+          allRides = allRides.concat(jsonData.rides);
+        }
+      
+        // Loop through the combined rides and categorize them
+        allRides.forEach(ride => {
+          for (const category in customCategories) {
+            if (customCategories[category].includes(ride.name)) {
+              categorizedRides[category].push(ride);
+            }
+          }
+        });
+        
+        // Clear existing lists
+        for (const category in categorizedRides) {
+          const categoryElement = document.getElementById(category.replace(/\s+/g, '-').toLowerCase());
+          if (categoryElement) {
+            const categoryList = categoryElement.querySelector('ul');
+            categoryList.innerHTML = '';
+          }
+        }
+        
+        // Sort rides alphabetically within each category and populate the lists
+        for (const category in categorizedRides) {
+          const categoryElement = document.getElementById(category.replace(/\s+/g, '-').toLowerCase());
+          if (categoryElement) {
+            const categoryList = categoryElement.querySelector('ul');
+            const rides = categorizedRides[category];
+            
+            // Sort rides alphabetically by name
+            rides.sort((a, b) => renameRide(a.name).localeCompare(renameRide(b.name)));
+            
+            // Populate the category list with the rides
+            rides.forEach(ride => {
+              const renamedRide = {...ride, name: renameRide(ride.name)};
+              categoryList.innerHTML += createRideListItem(renamedRide);
+            });
+          }
+        }
+      }
+      
+      // Auto-refresh the data every 5 minutes (300,000 ms)
+      const REFRESH_INTERVAL = 5 * 60 * 1000;
+      setInterval(fetchWithFallback, REFRESH_INTERVAL);
+      
+      // Start the fetch process
+      fetchWithFallback();
+    </script>
+  </body>
+</html>
