@@ -104,6 +104,24 @@
         color: #666;
         margin-top: 10px;
       }
+      .warning-symbol {
+        display: inline-block;
+        text-decoration: none !important;
+        border-bottom: none !important;
+        cursor: pointer;
+      }
+      .missing-info {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        padding: 5px 10px;
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: #721c24;
+        max-width: 300px;
+        margin-left: 10px;
+        margin-right: 10px;
+      }
     </style>
     <!-- Add Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -228,10 +246,12 @@
       // Format last updated time
       function formatFirebaseLastUpdated(lastUpdatedStr) {
         const date = new Date(lastUpdatedStr);
-        // Use getUTCHours and getUTCMinutes if you want to display UTC time
-        const hours = date.getUTCHours().toString().padStart(2, '0');
-        const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+        const options = {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Europe/London'
+        };
+        return date.toLocaleTimeString('en-GB', options);
       }
       
       // Compute how long a ride has been closed
@@ -267,6 +287,7 @@
             ride.closureDuration = formatClosureDuration(ride.lastStatusChange);
           }
           
+          // Place the ride in the category if it is expected there.
           for (const category in customCategories) {
             if (customCategories[category].includes(ride.name)) {
               categorizedRides[category].push(ride);
@@ -274,18 +295,56 @@
           }
         });
         
-        // Clear and re-populate each category section.
-        for (const category in categorizedRides) {
+        // Now update each category section in the DOM.
+        for (const category in customCategories) {
           const categoryElement = document.getElementById(category.replace(/\s+/g, '-').toLowerCase());
           if (categoryElement) {
             const categoryList = categoryElement.querySelector('ul');
             categoryList.innerHTML = '';
+            
+            // Sort rides for this category for display.
             categorizedRides[category].sort((a, b) => renameRide(a.name).localeCompare(renameRide(b.name)));
             categorizedRides[category].forEach(ride => {
               const renamedRide = { ...ride, name: renameRide(ride.name) };
               const listItem = createRideListItem(renamedRide);
               categoryList.appendChild(listItem);
             });
+            
+            // Determine if any rides expected in customCategories are missing.
+            const expectedRides = customCategories[category];
+            // Extract the raw names from the rides actually found.
+            const foundRides = categorizedRides[category].map(r => r.name);
+            // Determine which expected rides are missing.
+            const missing = expectedRides.filter(expected => !foundRides.includes(expected));
+            
+            // Get the header element (the first child, an <h2>).
+            const header = categoryElement.querySelector('h2');
+            // Reset header to just the category name.
+            header.textContent = capitalizeWords(category);
+            
+            // If there are missing rides, create a warning symbol.
+            if (missing.length > 0) {
+              const warningSpan = document.createElement('span');
+              warningSpan.textContent = ' ⚠️';
+              warningSpan.className = 'warning-symbol';
+              // Attach a click event to toggle a styled missing rides message below the header.
+              warningSpan.addEventListener('click', () => {
+                // Check if a missing info element already exists.
+                let infoElement = header.nextElementSibling;
+                if (infoElement && infoElement.classList.contains('missing-info')) {
+                  // Toggle its visibility.
+                  infoElement.style.display = (infoElement.style.display === 'none' || !infoElement.style.display) ? 'block' : 'none';
+                } else {
+                  // Create a new element to show missing rides.
+                  infoElement = document.createElement('div');
+                  infoElement.className = 'missing-info';
+                  infoElement.textContent = `Missing rides: ${missing.join(', ')}`;
+                  header.parentNode.insertBefore(infoElement, header.nextSibling);
+                }
+              });
+              
+              header.appendChild(warningSpan);
+            }
           }
         }
         
