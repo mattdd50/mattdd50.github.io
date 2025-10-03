@@ -246,12 +246,29 @@
       // Format last updated time
       function formatFirebaseLastUpdated(lastUpdatedStr) {
         const date = new Date(lastUpdatedStr);
-        const options = {
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: 'Europe/London'
-        };
-        return date.toLocaleTimeString('en-GB', options);
+        const now = new Date();
+        
+        // Check if the timestamp is from today
+        const isToday = date.toDateString() === now.toDateString();
+      
+        if (isToday) {
+          // Show only the time (HH:MM)
+          return date.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/London'
+          });
+        } else {
+          // Show full date + time if not today
+          return date.toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/London'
+          });
+        }
       }
       
       // Compute how long a ride has been closed
