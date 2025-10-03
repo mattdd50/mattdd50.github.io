@@ -259,12 +259,29 @@
       // Format last updated time
       function formatFirebaseLastUpdated(lastUpdatedStr) {
         const date = new Date(lastUpdatedStr);
-        const options = {
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: 'Europe/London'
-        };
-        return date.toLocaleTimeString('en-GB', options);
+        const now = new Date();
+        
+        // Check if the timestamp is from today
+        const isToday = date.toDateString() === now.toDateString();
+      
+        if (isToday) {
+          // Show only the time (HH:MM)
+          return date.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/London'
+          });
+        } else {
+          // Show full date + time if not today
+          return date.toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/London'
+          });
+        }
       }
       
       // Compute how long a ride has been closed
@@ -374,12 +391,45 @@
         try {
           const snapshot = await database.ref(`rideStatus/${currentPark}`).once('value');
           const ridesData = snapshot.val() || {};
-          // Convert the returned object into an array.
           const ridesArray = Object.keys(ridesData).map(key => ridesData[key]);
           processRideData(ridesArray);
           
-          if (ridesArray.length > 0 && ridesArray[0].lastUpdated) {
-            document.getElementById('last-updated').textContent = `Last updated: ${formatFirebaseLastUpdated(ridesArray[0].lastUpdated)}`;
+          if (ridesArray.length > 0) {
+            const timestamps = ridesArray
+              .map(r => r.lastUpdated)
+              .filter(Boolean);
+            
+            if (timestamps.length > 0) {
+              // Count frequency of each timestamp
+              const freq = {};
+              timestamps.forEach(ts => {
+                freq[ts] = (freq[ts] || 0) + 1;
+              });
+      
+              // Find the most frequent timestamp(s)
+              let maxCount = 0;
+              let candidates = [];
+              for (const ts in freq) {
+                if (freq[ts] > maxCount) {
+                  maxCount = freq[ts];
+                  candidates = [ts];
+                } else if (freq[ts] === maxCount) {
+                  candidates.push(ts);
+                }
+              }
+      
+              // If tie, choose the most recent timestamp
+              let chosenTimestamp = candidates.length === 1
+                ? candidates[0]
+                : candidates.reduce((latest, ts) =>
+                    new Date(ts) > new Date(latest) ? ts : latest
+                  );
+      
+              document.getElementById('last-updated').textContent =
+                `Last updated: ${formatFirebaseLastUpdated(chosenTimestamp)}`;
+            } else {
+              document.getElementById('last-updated').textContent = 'Last updated: N/A';
+            }
           } else {
             document.getElementById('last-updated').textContent = 'Last updated: N/A';
           }
