@@ -270,16 +270,37 @@
         if (!lastStatusChange) return '';
         const now = new Date();
         const closureTime = new Date(lastStatusChange);
-        // Get today's start time (midnight)
+      
+        // Midnight today and yesterday
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        // If the ride closed before today, return a special indicator
-        if (lastStatusChange < todayStart) {
-          return "ALL_DAY"; // Special marker to be handled in createRideListItem
+        const yesterdayStart = todayStart - (24 * 60 * 60 * 1000);
+      
+        if (lastStatusChange >= todayStart) {
+          // Closed today → show hours/minutes
+          const diffMs = now.getTime() - lastStatusChange;
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          return hours > 0 ? `(${hours}h ${minutes}m)` : `(${minutes}m)`;
+        } else if (lastStatusChange >= yesterdayStart) {
+          // Closed yesterday → show "All Day"
+          return "All Day";
+        } else {
+          // Closed before yesterday → show "Since DD/MM" (or add YYYY if not this year)
+          const sinceDate = new Date(lastStatusChange);
+          sinceDate.setDate(sinceDate.getDate() + 1); // the day after it last opened
+      
+          const options = {
+            day: '2-digit',
+            month: '2-digit'
+          };
+      
+          // Add year if it's a different year
+          if (sinceDate.getFullYear() !== now.getFullYear()) {
+            options.year = 'numeric';
+          }
+      
+          return `Since ${sinceDate.toLocaleDateString('en-GB', options)}`;
         }
-        const diffMs = now.getTime() - lastStatusChange;
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        return hours > 0 ? `(${hours}h ${minutes}m)` : `(${minutes}m)`;
       }
       
       // Process ride data from Firebase and update the display
